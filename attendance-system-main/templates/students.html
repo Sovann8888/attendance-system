@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Manage Students</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-brand">📋 QR Attendance</div>
+  <div class="nav-right">
+    <a href="/dashboard" class="btn btn-ghost btn-sm">← Dashboard</a>
+  </div>
+</nav>
+
+<main class="container">
+
+  <!-- Add Student -->
+  <div class="card">
+    <h2>➕ Add Student</h2>
+    <div class="add-student-form">
+      <input type="text" id="newId"    placeholder="Student ID (e.g. 6026010074)" maxlength="20"/>
+      <input type="text" id="newName"  placeholder="Full Name" maxlength="60"/>
+      <input type="text" id="newMajor" placeholder="Major (optional)" maxlength="60"/>
+      <select id="newSubject">
+        <option value="" disabled selected>Select subject…</option>
+        {% for s in subjects %}
+        <option value="{{ s.id }}">{{ s.name }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-primary" onclick="addStudent()">Add</button>
+    </div>
+    <div id="addError" class="alert alert-error" style="display:none"></div>
+    <div id="addSuccess" class="alert alert-success" style="display:none"></div>
+  </div>
+
+  <!-- Student List -->
+  <div class="card">
+    <h2>👥 Student List ({{ students|length }})</h2>
+    <table class="data-table" id="studentTable">
+      <thead>
+        <tr><th>Student ID</th><th>Name</th><th>Major</th><th>Subject</th><th>Action</th></tr>
+      </thead>
+      <tbody>
+        {% for s in students %}
+        <tr id="row-{{ s.student_id }}">
+          <td><code>{{ s.student_id }}</code></td>
+          <td>{{ s.name }}</td>
+          <td>{{ s.major or '—' }}</td>
+          <td><span class="badge">{{ s.subject_name }}</span></td>
+          <td>
+            <button class="btn btn-danger btn-sm"
+                    onclick="deleteStudent('{{ s.student_id }}')">Delete</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+async function addStudent() {
+  const id        = document.getElementById("newId").value.trim().toUpperCase();
+  const name      = document.getElementById("newName").value.trim();
+  const major     = document.getElementById("newMajor").value.trim();
+  const subjectId = document.getElementById("newSubject").value;
+  const errEl     = document.getElementById("addError");
+  const okEl      = document.getElementById("addSuccess");
+
+  errEl.style.display = "none";
+  okEl.style.display  = "none";
+
+  if (!id || !name || !subjectId) {
+    errEl.textContent = "Student ID, Name, and Subject are required.";
+    errEl.style.display = "block";
+    return;
+  }
+
+  const res  = await fetch("/api/students/add", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ student_id: id, name, major, subject_id: subjectId }),
+  });
+  const data = await res.json();
+  if (data.ok) {
+    okEl.textContent = `Student ${id} added to ${data.subject_name}.`;
+    okEl.style.display = "block";
+    ["newId","newName","newMajor"].forEach(f => document.getElementById(f).value = "");
+    document.getElementById("newSubject").selectedIndex = 0;
+    setTimeout(() => location.reload(), 700);
+  } else {
+    errEl.textContent = data.error;
+    errEl.style.display = "block";
+  }
+}
+
+async function deleteStudent(id) {
+  if (!confirm(`Delete student ${id}?`)) return;
+  await fetch(`/api/students/delete/${id}`, { method: "DELETE" });
+  const row = document.getElementById(`row-${id}`);
+  if (row) row.remove();
+}
+</script>
+</body>
+</html>

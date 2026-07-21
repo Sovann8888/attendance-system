@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>{{ subject.name }} – QR Attendance</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-brand">📋 QR Attendance</div>
+  <div class="nav-right">
+    <a href="/dashboard" class="btn btn-ghost btn-sm">← All Classes</a>
+    <a href="/students" class="btn btn-outline btn-sm">Manage Students</a>
+    <a href="/logout" class="btn btn-ghost btn-sm">Log Out</a>
+  </div>
+</nav>
+
+<main class="container">
+
+  <section class="card start-card">
+    <h2>📘 {{ subject.name }}</h2>
+    <p class="records-meta" style="margin-bottom:1rem;">
+      {{ roster|length }} students enrolled &nbsp;|&nbsp; {{ total_sessions }} sessions held
+    </p>
+    <button class="btn btn-primary" onclick="startSubjectSession({{ subject.id }})">
+      ▶ Start QR Attendance Session
+    </button>
+    <div id="startError" class="alert alert-error" style="display:none"></div>
+  </section>
+
+  <!-- Session History -->
+  <section class="card">
+    <h2>📁 Attendance Session History</h2>
+    {% if sessions %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Started</th>
+          <th>Professor</th>
+          <th>Status</th>
+          <th>Students</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sessions %}
+        <tr>
+          <td>{{ s.started_at[:16].replace('T',' ') }}</td>
+          <td>{{ s.teacher_name }}</td>
+          <td>
+            {% if s.ended_at %}
+              <span class="status status-ended">Ended</span>
+            {% else %}
+              <span class="status status-active">Active</span>
+            {% endif %}
+          </td>
+          <td><strong>{{ s.student_count }}</strong></td>
+          <td class="actions">
+            {% if not s.ended_at %}
+            <a href="/session/{{ s.id }}/qr" class="btn btn-sm btn-accent" target="_blank">Show QR</a>
+            <button class="btn btn-sm btn-danger" onclick="endSession('{{ s.id }}', this)">End</button>
+            {% endif %}
+            <a href="/session/{{ s.id }}/records" class="btn btn-sm btn-outline">Records</a>
+            <a href="/session/{{ s.id }}/export" class="btn btn-sm btn-outline">CSV</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No sessions yet for this subject. Start one above.</p>
+    {% endif %}
+  </section>
+
+  <!-- Full Student History for this Subject -->
+  <section class="card">
+    <h2>👥 Student Attendance History</h2>
+    {% if roster %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Student ID</th>
+          <th>Name</th>
+          <th>Major</th>
+          <th>Sessions Attended</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in roster %}
+        <tr>
+          <td><code>{{ r.student_id }}</code></td>
+          <td>{{ r.name }}</td>
+          <td>{{ r.major or '—' }}</td>
+          <td><strong>{{ r.attended_count }}</strong> / {{ total_sessions }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No students enrolled in this subject yet. Add them from Manage Students.</p>
+    {% endif %}
+  </section>
+
+</main>
+
+<script>
+async function startSubjectSession(subjectId) {
+  const errEl = document.getElementById("startError");
+  errEl.style.display = "none";
+
+  const form = new FormData();
+  form.append("subject_id", subjectId);
+
+  const res  = await fetch("/session/start", { method: "POST", body: form });
+  const data = await res.json();
+
+  if (data.session_id) {
+    window.open(`/session/${data.session_id}/qr`, "_blank");
+    setTimeout(() => location.reload(), 500);
+  } else {
+    errEl.textContent = data.error || "Failed to start session.";
+    errEl.style.display = "block";
+  }
+}
+
+async function endSession(sessId, btn) {
+  if (!confirm("End this attendance session?")) return;
+  btn.disabled = true;
+  await fetch(`/session/${sessId}/end`, { method: "POST" });
+  location.reload();
+}
+</script>
+
+</body>
+</html>

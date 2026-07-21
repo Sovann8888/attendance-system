@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Mark Attendance</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body class="student-page">
+
+<div class="student-card">
+
+  {% if blocked %}
+  <!-- BLOCKED STATE -->
+  <div class="student-state blocked">
+    <div class="state-icon">⛔</div>
+    <h2>Access Denied</h2>
+    <p class="state-msg">{{ reason }}</p>
+    <a href="javascript:history.back()" class="btn btn-outline">← Go Back</a>
+  </div>
+
+  {% else %}
+  <!-- ATTENDANCE FORM -->
+  <div class="student-state" id="formState">
+    <div class="state-icon">📱</div>
+    <h2>Mark Attendance</h2>
+    <p class="state-class">Subject: <strong>{{ subject_name }}</strong></p>
+
+    <div class="form-group">
+      <label for="studentId">Student ID</label>
+      <input type="text" id="studentId" placeholder="e.g. 6026010074"
+             maxlength="20" autocomplete="off" autocapitalize="characters"
+             oninput="this.value = this.value.toUpperCase()"/>
+    </div>
+
+    <div id="formError" class="alert alert-error" style="display:none"></div>
+
+    <button class="btn btn-primary btn-full" id="submitBtn" onclick="submitAttendance()">
+      Submit Attendance
+    </button>
+  </div>
+
+  <!-- SUCCESS STATE -->
+  <div class="student-state hidden" id="successState">
+    <div class="state-icon success-icon">✅</div>
+    <h2>Attendance Marked!</h2>
+    <div class="success-info" id="successInfo"></div>
+  </div>
+
+  <!-- ERROR STATE (fatal) -->
+  <div class="student-state hidden" id="errorState">
+    <div class="state-icon">❌</div>
+    <h2>Submission Failed</h2>
+    <p id="fatalError" class="state-msg"></p>
+    <a href="javascript:history.back()" class="btn btn-outline">← Try Again</a>
+  </div>
+
+  {% endif %}
+
+</div>
+
+{% if not blocked %}
+<script>
+const SESSION_ID = "{{ session_id }}";
+const TOKEN      = "{{ token }}";
+
+// Generate a stable device fingerprint (stored in localStorage).
+// This phone will be permanently bound to whichever student ID is first
+// submitted from it — one phone can only ever check in one student.
+function getDeviceId() {
+  let id = localStorage.getItem("_att_device_id");
+  if (!id) {
+    id = "dev-" + Math.random().toString(36).substr(2, 12) + Date.now().toString(36);
+    localStorage.setItem("_att_device_id", id);
+  }
+  return id;
+}
+
+async function submitAttendance() {
+  const studentId = document.getElementById("studentId").value.trim().toUpperCase();
+  const errEl     = document.getElementById("formError");
+  const btn       = document.getElementById("submitBtn");
+
+  errEl.style.display = "none";
+
+  if (!studentId) {
+    errEl.textContent = "Please enter your Student ID.";
+    errEl.style.display = "block";
+    return;
+  }
+
+  btn.disabled     = true;
+  btn.textContent  = "Submitting…";
+
+  try {
+    const res = await fetch("/api/attend/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: SESSION_ID,
+        token:      TOKEN,
+        student_id: studentId,
+        device_id:  getDeviceId(),
+      }),
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      document.getElementById("formState").classList.add("hidden");
+      const successEl = document.getElementById("successState");
+      successEl.classList.remove("hidden");
+      const ts = new Date(data.timestamp).toLocaleTimeString();
+      document.getElementById("successInfo").innerHTML = `
+        <div class="success-row"><span>Name</span><strong>${data.student_name}</strong></div>
+        <div class="success-row"><span>ID</span><strong>${studentId}</strong></div>
+        <div class="success-row"><span>Subject</span><strong>${data.subject_name}</strong></div>
+        <div class="success-row"><span>Time</span><strong>${ts}</strong></div>
+      `;
+    } else {
+      // Check if it's a fatal error (expired session etc.)
+      if (res.status === 400 && data.error.includes("Session")) {
+        document.getElementById("formState").classList.add("hidden");
+        document.getElementById("errorState").classList.remove("hidden");
+        document.getElementById("fatalError").textContent = data.error;
+      } else {
+        errEl.textContent   = data.error;
+        errEl.style.display = "block";
+        btn.disabled        = false;
+        btn.textContent     = "Submit Attendance";
+      }
+    }
+  } catch(e) {
+    errEl.textContent   = "Network error. Check your connection and try again.";
+    errEl.style.display = "block";
+    btn.disabled        = false;
+    btn.textContent     = "Submit Attendance";
+  }
+}
+
+// Allow Enter key
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("studentId")
+    .addEventListener("keydown", e => { if (e.key === "Enter") submitAttendance(); });
+});
+</script>
+{% endif %}
+
+</body>
+</html>

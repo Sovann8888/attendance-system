@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Enter Code – QR Attendance</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body class="auth-page">
+
+<div class="auth-card">
+  <div class="auth-logo">
+    <div class="logo-icon">📧</div>
+    <h1>Check Your Email</h1>
+    <p class="auth-subtitle">Code sent to <strong>{{ email }}</strong></p>
+  </div>
+
+  {% if error %}
+  <div class="alert alert-error">{{ error }}</div>
+  {% endif %}
+
+  {% if dev_code %}
+  <div class="alert alert-dev">
+    <strong>DEV MODE</strong> — no email server is configured, so here's your code directly:
+    <div class="dev-code" id="devCode">{{ dev_code }}</div>
+    Configure <code>SMTP_HOST</code> / <code>SMTP_USER</code> / <code>SMTP_PASSWORD</code> to send this by real email instead.
+  </div>
+  {% endif %}
+
+  <form method="POST" action="/login/verify" class="auth-form">
+    <div class="form-group">
+      <label for="code">6-Digit Verification Code</label>
+      <input type="text" id="code" name="code" placeholder="000000" maxlength="6"
+             inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code"
+             class="code-input" required autofocus/>
+    </div>
+    <button type="submit" class="btn btn-primary btn-full">Verify &amp; Log In</button>
+  </form>
+
+  <button type="button" class="btn btn-outline btn-full btn-resend" id="resendBtn" onclick="resendCode()">
+    🔄 Resend Code
+  </button>
+  <p class="auth-hint" id="resendStatus"></p>
+
+  <p class="auth-hint">This code stays valid for a few minutes. If it expires, just tap Resend Code.</p>
+  <p class="auth-hint"><a href="/login">← Use a different email</a></p>
+</div>
+
+<script>
+async function resendCode() {
+  const btn    = document.getElementById("resendBtn");
+  const status = document.getElementById("resendStatus");
+  btn.disabled = true;
+  btn.textContent = "Sending…";
+
+  try {
+    const res  = await fetch("/api/login-code/resend", { method: "POST" });
+    const data = await res.json();
+
+    if (data.ok) {
+      status.textContent = data.sent_real_email
+        ? "A new code was emailed to you."
+        : "A new code was generated (see below — no email server configured).";
+      if (data.dev_code) {
+        let devBox = document.getElementById("devCode");
+        if (!devBox) { location.reload(); return; }
+        devBox.textContent = data.dev_code;
+      }
+    } else {
+      status.textContent = data.error || "Could not resend code.";
+    }
+  } catch (e) {
+    status.textContent = "Network error — please try again.";
+  }
+
+  btn.disabled = false;
+  btn.textContent = "🔄 Resend Code";
+}
+</script>
+
+</body>
+</html>

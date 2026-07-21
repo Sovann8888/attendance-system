@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Dashboard – QR Attendance</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-brand">📋 QR Attendance</div>
+  <div class="nav-right">
+    <span class="nav-teacher">👤 {{ teacher_name }}</span>
+    <a href="/students" class="btn btn-outline btn-sm">Manage Students</a>
+    <a href="/logout" class="btn btn-ghost btn-sm">Log Out</a>
+  </div>
+</nav>
+
+<main class="container">
+
+  <section class="card">
+    <div class="section-header">
+      <h2>📚 All Classes</h2>
+      <button class="btn btn-primary btn-sm" onclick="openAddSubject()">+ Add More</button>
+    </div>
+
+    {% if subjects %}
+    <div class="subject-grid">
+      {% for s in subjects %}
+      <a href="/subject/{{ s.id }}" class="subject-card">
+        <div class="subject-card-top">
+          <div class="subject-icon">📘</div>
+          {% if s.active_count and s.active_count > 0 %}
+          <span class="status status-active">Live</span>
+          {% endif %}
+        </div>
+        <h3 class="subject-name">{{ s.name }}</h3>
+        <div class="subject-meta">
+          <span>👥 {{ s.student_count }} students</span>
+          <span>📁 {{ s.session_count }} sessions</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">No subjects yet. Click "+ Add More" to create your first class.</p>
+    {% endif %}
+  </section>
+
+</main>
+
+<!-- Add Subject Modal -->
+<div class="modal-overlay" id="addSubjectModal">
+  <div class="modal-card">
+    <h2>➕ Add New Class / Subject</h2>
+    <div class="form-group">
+      <label for="newSubjectName">Subject Name</label>
+      <input type="text" id="newSubjectName" placeholder="e.g. Software Engineering" maxlength="60"/>
+    </div>
+    <div id="subjectAddError" class="alert alert-error" style="display:none"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeAddSubject()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAddSubject()">Add Subject</button>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>

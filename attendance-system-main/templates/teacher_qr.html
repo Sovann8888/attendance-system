@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>QR Code – {{ subject_name }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body class="qr-page">
+
+<div class="qr-container">
+
+  <div class="qr-header">
+    <a href="/dashboard" class="btn btn-ghost btn-sm">← Dashboard</a>
+    <div class="qr-class-badge">{{ subject_name }}</div>
+    <button class="btn btn-danger btn-sm" onclick="endAndReturn()">End Session</button>
+  </div>
+
+  <div class="qr-main">
+    <h1 class="qr-title">Scan to Mark Attendance</h1>
+    <p class="qr-subtitle">Students must be on <strong>school WiFi</strong></p>
+
+    <div class="qr-frame" id="qrFrame">
+      <img id="qrImage" src="" alt="QR Code" class="qr-img"/>
+      <div class="qr-overlay" id="qrOverlay" style="display:none">
+        <div class="qr-refresh-icon">🔄</div>
+        <p>Refreshing…</p>
+      </div>
+    </div>
+
+    <!-- Countdown bar -->
+    <div class="timer-wrap">
+      <div class="timer-bar-bg">
+        <div class="timer-bar" id="timerBar"></div>
+      </div>
+      <span class="timer-label">Refreshes in <strong id="timerText">10</strong>s</span>
+    </div>
+
+    <!-- Live count -->
+    <div class="count-card">
+      <div class="count-number" id="studentCount">0</div>
+      <div class="count-label">Students Marked</div>
+    </div>
+
+    <!-- Student URL (fallback) -->
+    <div class="url-fallback">
+      <span class="url-label">Direct link:</span>
+      <code id="studentUrl" class="url-text">–</code>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SESSION_ID = "{{ session_id }}";
+
+async function refreshQR() {
+  document.getElementById("qrOverlay").style.display = "flex";
+  try {
+    const res  = await fetch(`/api/qr/${SESSION_ID}`);
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+
+    document.getElementById("qrImage").src = `data:image/png;base64,${data.qr_image}`;
+    document.getElementById("studentUrl").textContent = data.student_url;
+    startTimer(data.remaining);
+  } catch(e) {
+    console.error(e);
+  } finally {
+    document.getElementById("qrOverlay").style.display = "none";
+  }
+}
+
+function startTimer(seconds) {
+  let remaining = seconds;
+  const bar   = document.getElementById("timerBar");
+  const label = document.getElementById("timerText");
+  const TOTAL = 10;
+
+  clearInterval(window._timerInterval);
+  window._timerInterval = setInterval(() => {
+    remaining--;
+    label.textContent = remaining;
+    bar.style.width = `${(remaining / TOTAL) * 100}%`;
+    bar.style.background = remaining > 5 ? "#22c55e" : remaining > 2 ? "#f59e0b" : "#ef4444";
+
+    if (remaining <= 0) {
+      clearInterval(window._timerInterval);
+      refreshQR();
+    }
+  }, 1000);
+}
+
+async function updateCount() {
+  try {
+    const res  = await fetch(`/api/session/${SESSION_ID}/count`);
+    const data = await res.json();
+    document.getElementById("studentCount").textContent = data.count;
+  } catch(e) {}
+}
+
+async function endAndReturn() {
+  if (!confirm("End this attendance session?")) return;
+  await fetch(`/session/${SESSION_ID}/end`, { method: "POST" });
+  window.location.href = "/dashboard";
+}
+
+// Init
+refreshQR();
+updateCount();
+setInterval(updateCount, 5000);
+</script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Attendance Records – {{ session.subject_name }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-brand">📋 QR Attendance</div>
+  <div class="nav-right">
+    <a href="/subject/{{ session.subject_id }}" class="btn btn-ghost btn-sm">← Back to Subject</a>
+  </div>
+</nav>
+
+<main class="container">
+  <div class="card">
+    <div class="records-header">
+      <div>
+        <h2>📋 Attendance Records</h2>
+        <p class="records-meta">
+          Subject: <strong>{{ session.subject_name }}</strong> &nbsp;|&nbsp;
+          Date: <strong>{{ session.started_at[:10] }}</strong> &nbsp;|&nbsp;
+          Total: <strong>{{ records|length }} students</strong>
+        </p>
+      </div>
+      <a href="/session/{{ session.id }}/export" class="btn btn-primary">⬇ Export CSV</a>
+    </div>
+
+    {% if records %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Student ID</th>
+          <th>Name</th>
+          <th>Time</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td><code>{{ r.student_id }}</code></td>
+          <td>{{ r.student_name }}</td>
+          <td>{{ r.timestamp[11:19] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No attendance records yet for this session.</p>
+    {% endif %}
+  </div>
+</main>
+
+</body>
+</html>
